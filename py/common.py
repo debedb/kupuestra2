@@ -1,9 +1,11 @@
+import atexit
 import calendar
 import dateutil.parser
 import datetime
 import socket
 import arrow
 import time
+import collections
 
 OPENTSDB_HOST = 'node2.cloudera1.enremmeta.com'
 OPENTSDB_PORT = 4242
@@ -17,39 +19,56 @@ from pricing import *
 def if_send(key, value, ts=None):
     pass
 
+OTSDB_BUFFER_SIZE = 1000
+
+OTSDB_BUFFER = []
+
+def send_messages(host, port, msg):
+    i = 1
+    while True:
+        try:
+            sock = socket.socket()
+            sock.connect((OPENTSDB_HOST, OPENTSDB_PORT))
+            if isinstance(msg, collections.Iterable):
+                # print "Sending %s messages to %s:%s" % (len(msg), host, port)
+                for m in msg:
+                    # print "To socket: %s" % m
+                    sock.sendall(m)
+            else:
+                # print "To socket: %s" % msg
+                sock.sendall(msg)
+            sock.close()
+            break
+        except Exception, e:
+            if i > 5:
+                raise
+            print  e
+            time.sleep(i*i)
+            print "Trying again %s" % i
+            i += 1
+            continue
+    
+
 def otsdb_send(key, value, tags, ts=None, file_only=False):
     if ts is None:
         ts = arrow.utcnow().timestamp
     tags_str = ' '.join(["%s=%s"  % (normalize_key(k),normalize_key(v)) for k,v in tags.items()])
     msg = "put %s %s %s %s" % (key, ts, value, tags_str)
-    
-    print "Sending to OpenTSDB:\n\t%s" % msg
+    # print "Sending to OpenTSDB:\n\t%s" % msg
     msg += "\n"
-    # This is just for historical data
-    if file_only:
-        if not OPENTSDB_FILE:
-            global OPENTSDB_FILE
-            print "Creating %s" % OPENTSDB_FILENAME
-            OPENTSDB_FILE = open(OPENTSDB_FILENAME, 'w')
-        OPENTSDB_FILE.write(msg)
-    else:
-        i = 1
-        while True:
-            try:
-                sock = socket.socket()
-                sock.connect((OPENTSDB_HOST, OPENTSDB_PORT))
-                sock.sendall(msg)
-                sock.close()
-                break
-            except Exception, e:
-                if i > 10:
-                    raise
-                print  e
-                time.sleep(i*3)
-                print "Trying again %s" % i
-                i += 1
-                continue
+    OTSDB_BUFFER.append(msg)
+    if len(OTSDB_BUFFER) % OTSDB_BUFFER_SIZE == 0:
+        send_messages(OPENTSDB_HOST, OPENTSDB_PORT, OTSDB_BUFFER)
+        OTSDB_BUFFER[:] = []
 
+def otsdb_send_remaining():
+    print "Sending remaining %s messages"  % len(OTSDB_BUFFER)
+    print "Ending with\n\t%s" % OTSDB_BUFFER[-1]
+    send_messages(OPENTSDB_HOST, OPENTSDB_PORT, OTSDB_BUFFER)
+
+atexit.register(otsdb_send_remaining)
+
+            
 def g_send(key, value, ts=None):
     if ts is None:
         ts = arrow.utcnow().timestamp

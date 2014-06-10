@@ -6,18 +6,25 @@ import common
 
 def main(st,et):
     if not st:
-        start_time = arrow.utcnow().replace(minutes=-DEFAULT_LOOKBACK_MINUTES)
+        st = arrow.utcnow().replace(minutes=common.DEFAULT_LOOKBACK_MINUTES)
     if not et:
         et = arrow.utcnow()
     print "Processing from %s until %s" % (st, et)
     while True:
         if st>et:
-            for region in common.AWS_ON_DEMAND_PRICES:
+            break
+        print "%s:\n\t%s regions" % (st, len(common.AWS_ON_DEMAND_PRICES.keys()))
+        reg1 = common.AWS_ON_DEMAND_PRICES.keys()[0]
+        print "\t%s products" % (len(common.AWS_ON_DEMAND_PRICES[reg1].keys()))
+        prod1 = common.AWS_ON_DEMAND_PRICES[reg1].keys()[0]
+        print "\t%s instance types" % (len(common.AWS_ON_DEMAND_PRICES[reg1][prod1].keys()))
+        for region in common.AWS_ON_DEMAND_PRICES:
+            print '\t%s zones in %s' % (len(common.AWS_REGIONS_TO_ZONES[region]), region)
+            for zone in common.AWS_REGIONS_TO_ZONES[region]:
                 for product in common.AWS_ON_DEMAND_PRICES[region]:
                     for inst_type in common.AWS_ON_DEMAND_PRICES[region][product]:
                         price = common.AWS_ON_DEMAND_PRICES[region][product][inst_type]
-                        for zone in common.AWS_REGIONS_TO_ZONES[region]:
-                            tags = {
+                        tags = {
                             'region' : region,
                             'product' : product,
                             'inst_type' : inst_type,
@@ -25,18 +32,17 @@ def main(st,et):
                             'zone' : zone,
                             'units' : 'USD'
                             }
-                            ts = st.timestamp
-                            common.otsdb_send('price', price, tags, ts)
-            for inst_type in common.AWS_INSTANCE_METRICS:
-                tags = {
-                    'inst_type' : inst_type,
-                    'units' : 'quantity'
-                    }
-                common.otsdb_send('aws_vcpu', common.AWS_INSTANCE_METRICS['vCPU'], tags, ts)
-                common.otsdb_send('aws_ecu', common.AWS_INSTANCE_METRICS['ecu'], tags, ts)
-                tags['units'] = 'GiB'
-                common.otsdb_send('aws_memoryGiB', common.AWS_INSTANCE_METRICS['memoryGiB'], tags, ts)
-                    
+                        ts = st.timestamp
+                        common.otsdb_send('price', price, tags, ts)
+                        for inst_type in common.AWS_INSTANCE_METRICS:
+                            tags = {
+                                'inst_type' : inst_type,
+                                'units' : 'quantity'
+                                }
+                            common.otsdb_send('aws_vcpu', common.AWS_INSTANCE_METRICS['vCPU'], tags, ts)
+                            common.otsdb_send('aws_ecu', common.AWS_INSTANCE_METRICS['ecu'], tags, ts)
+                            tags['units'] = 'GiB'
+                            common.otsdb_send('aws_memoryGiB', common.AWS_INSTANCE_METRICS['memoryGiB'], tags, ts)
         st = st.replace(minutes=+1)
 
 if __name__ == "__main__":

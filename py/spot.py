@@ -14,7 +14,7 @@ def main(st, et):
     if st:
         start_time = st
     else:
-        start_time = arrow.utcnow().replace(minutes=-DEFAULT_LOOKBACK_MINUTES)
+        start_time = arrow.utcnow().replace(minutes=common.DEFAULT_LOOKBACK_MINUTES)
 
     if et:
         end_time = et

@@ -148,18 +148,19 @@ def main():
             continue
         
         for sample in entry.data:
-            ts = sample.timestamp
+            ts = arrow.Arrow.fromdatetime(sample.timestamp).timestamp
             val = sample.value
             common.otsdb_send(metric, val, combined_tags, ts, False)
             # Do the AWS once only
             if my_cache and not my_cache['aws_info_recorded']:
-                print my_cache
+                # print my_cache
                 combined_tags['unit'] = 'percent'
-                common.otsdb_send('aws_average_cpu_utilization', 
-                                  my_cache['avg_cpu'],
-                                  combined_tags, 
-                                  my_cache['ts'], 
-                                  False)
+                if 'avg_cpu' in my_cache:
+                    common.otsdb_send('aws_average_cpu_utilization', 
+                                      my_cache['avg_cpu'],
+                                      combined_tags, 
+                                      my_cache['ts'], 
+                                      False)
 
 if __name__ == "__main__":
     main()
