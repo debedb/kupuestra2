@@ -1,0 +1,2 @@
+price.spot
+price.ondemand

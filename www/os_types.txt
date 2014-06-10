@@ -1,0 +1,7 @@
+Linux_UNIX
+Linux_UNIX_Amazon_VPC
+SUSE_Linux
+SUSE_Linux_Amazon_VPC
+Windows
+Windows_Amazon_VPC
+

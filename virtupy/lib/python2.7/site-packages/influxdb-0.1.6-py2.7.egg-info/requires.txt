@@ -1,0 +1,6 @@
+requests>=1.0.3
+
+[test]
+requests
+nose
+mock

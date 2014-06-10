@@ -1,0 +1,153 @@
+#!/opt/kup/virtupy/bin/python
+import sys
+import urllib2
+import simplejson
+import common
+import arrow
+import boto.ec2
+import boto.ec2.cloudwatch
+from cm_api.api_client import ApiResource
+
+cwcon = ec2con = None
+
+CM_HOST = 'node0.cloudera1.enremmeta.com'
+
+
+def get_nodes():
+    nodes = fetch("cluster/nodes")
+    return nodes
+
+def main():
+    global ec2con
+    global cwcon
+
+    ec2con = boto.ec2.connect_to_region('us-east-1')
+    cwcon = boto.ec2.cloudwatch.CloudWatchConnection()
+
+    api = ApiResource(CM_HOST, username="admin", password="admin")
+
+    displayName = None
+    for c in api.get_all_clusters():
+        displayName = c.displayName
+        print "Cluster: %s (%s)" % (displayName, c.name)
+    
+    inst_cache = {}
+    
+    insts = api.get_all_hosts('full')
+    for inst in insts.objects:
+        clusterName =  inst.roleRefs[0].clusterName
+        if clusterName <> c.name:
+            continue
+        print inst.__dict__
+        cores = inst.numCores
+        inst_id = inst.hostId
+        physBytes = inst.totalPhysMemBytes
+        health = inst.healthSummary
+        
+        help(ec2con.get_all_reservations)
+        sys.exit(0)
+        if hostname:
+            ress = ec2con.get_all_reservations(filters={'private-dns-name' : hostname})
+            print ress
+        continue
+        sys.exit(0)
+        if ress:
+            res = ress[0]
+            instances = res.instances
+            inst = instances[0]
+            inst_id = inst.id
+            inst_type = inst.instance_type
+            key = "adotube.hadoop.hadoop1.nodes." + common.normalize_key(hadoop_id).replace('.','_')
+
+            print "%s is %s (%s)" % (host, inst_id, inst_type)
+            
+            common.g_send(key + ".aws_vcpu.avail", common.AWS_INSTANCE_METRICS[inst_type]['vcpu'])
+            # ecu = common.AWS_INSTANCE_METRICS[inst_type]['ecu']
+            # common.g_send(key + ".aws_ecu.avail", ecu)
+            common.g_send(key + ".aws_mem.avail", common.AWS_INSTANCE_METRICS[inst_type]['mem'])
+            
+            time_f =  arrow.utcnow().replace(minutes=-5)
+            time_t = arrow.utcnow()
+            print "Getting CloudWatch for data from %s to %s" % (time_f,time_t)
+            # TODO
+            # http://arr.gr/blog/2013/08/monitoring-ec2-instance-memory-usage-with-cloudwatch/
+            # http://blog.sciencelogic.com/netflix-steals-time-in-the-cloud-and-from-users/03/2011
+            # https://www.stackdriver.com/cpu-steal-why-aws-cloudwatch-metrics-are-different-than-agent-metrics/
+            stat = cwcon.get_metric_statistics(300,
+                              time_f,
+                              time_t,
+                              common.CW_M_CPU,
+                              'AWS/EC2',
+                              ['Average','Minimum','Maximum'],
+                              { 'InstanceId' : inst_id })     
+            # [{u'Timestamp': datetime.datetime(2014, 4, 13, 6, 5), u'Average': 0.35250000000000004, u'Minimum': 0.33, u'Maximum': 0.42, u'Unit': u'Percent'}]
+            if stat:
+                stat = stat[0]
+                ts = common.ts_from_aws(stat)
+                avg_cpu = float(stat['Average'])
+                common.g_send(key + ".aws_cpu.util_avg_pct", avg_cpu, ts)
+                common.g_send(key + ".aws_ecu.util_avg", avg_cpu*ecu, ts)
+        
+        #print node._resource_root.__dict__
+        # print "Comparing %s to %s" % (clusterName, c.name)
+            
+    sys.exit(0)
+    
+    series = api.query_timeseries('SELECT * WHERE clusterName = %s'  % c.name)
+#    print series.objects[0].__dict__
+#    print series.objects[0].timeSeries
+    print len(series.objects[0].timeSeries)
+    
+    for entry in series.objects[0].timeSeries:
+        # print entry.metadata.__dict__
+        metric = entry.metadata.metricName
+        # internal host
+        hostname = ""
+        if 'hostname' in entry.metadata.attributes:
+            host = entry.metadata.attributes['hostname']
+        inst_id = ""
+        if 'hostId' in entry.metadata.attributes:
+            inst_id = entry.metadata.attributes['hostId']
+        service_name = ""
+        if 'serviceName' in entry.metadata.attributes:
+            service_name = entry.metadata.attributes['serviceName']
+        service_type = ""
+        if 'serviceType' in entry.metadata.attributes:
+            service_type= entry.metadata.attributes['serviceType']
+        role_type = ""
+        if 'roleType' in entry.metadata.attributes:
+            role_type = entry.metadata.attributes['roleType']
+        
+        
+        num = entry.metadata.unitNumerators
+        denom = entry.metadata.unitDenominators
+        if len(num) > 1:
+            print "Num:" + num
+        if len(denom)>1:
+            print "Denom:" + denom
+        unit = num[0]
+           
+        if len(denom) > 0:
+            unit += denom[0]
+        tags = {
+            'cdh_service_name' : service_name,
+            'cdh_service_type' : service_type,
+            'cdh_role_type' : role_type,
+            'unit' : unit
+            }
+        if not entry.data:
+            continue
+        for sample in entry.data:
+            ts = sample.timestamp
+            val = sample.value
+            common.otsdb_send(metric, val, tags, ts, False)
+        #mem = node['availMemoryMB']
+        #used_mem = node['usedMemoryMB']
+        #hadoop_ts = node['lastHealthUpdate']
+        #common.g_send(key + ".hadoop.mem_avail", mem, hadoop_ts)
+        #common.g_send(key + ".hadoop.mem_used", used_mem, hadoop_ts)
+
+# {u'nodes': {u'node': [{u'availMemoryMB': 6144, u'nodeHostName': u'ip-10-146-185-5.ec2.internal', u'lastHealthUpdate': 1397336871391, u'usedMemoryMB': 0, u'numContainers': 0, u'nodeHTTPAddress': u'ip-10-146-185-5.ec2.internal:8042', u'id': u'ip-10-146-185-5.ec2.internal:36344', u'healthReport': u'', u'state': u'RUNNING', u'healthStatus': u'Healthy', u'rack': u'/default-rack'}]}}
+
+if __name__ == "__main__":
+    main()

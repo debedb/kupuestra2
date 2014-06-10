@@ -1,0 +1,5 @@
+#!/opt/kup/virtupy/bin/python
+# EASY-INSTALL-SCRIPT: 'boto==2.25.0','fetch_file'
+__requires__ = 'boto==2.25.0'
+import pkg_resources
+pkg_resources.run_script('boto==2.25.0', 'fetch_file')

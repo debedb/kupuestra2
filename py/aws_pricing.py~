@@ -1,0 +1,88 @@
+# http://www.scalr.com/blog/how-to-get-ec2-pricing-data-programmatically
+#
+# http://stackoverflow.com/questions/7334035/get-ec2-pricing-programmatically
+
+import urllib2
+import simplejson as json
+
+# product=Linux_UNIX
+# product=Linux_UNIX_Amazon_VPC
+# product=SUSE_Linux
+# product=SUSE_Linux_Amazon_VPC
+# product=Windows
+# product=Windows_Amazon_VPC
+
+# Instance type to metrics
+AWS_INSTANCE_METRICS =  { 
+}
+
+PRODUCT_TO_URL={
+    "Linux_UNIX" : "http://aws-assets-pricing-prod.s3.amazonaws.com/pricing/ec2/linux-od.js",
+    "SUSE_Linux" : "http://aws-assets-pricing-prod.s3.amazonaws.com/pricing/ec2/sles-od.js",
+    "Windows" : "http://aws-assets-pricing-prod.s3.amazonaws.com/pricing/ec2/mswin-od.js"
+}
+
+def callback
+
+def fill_in_metrics():
+    for product in PRODUCT_TO_URL:
+        for suffix in ['', '_Amazon_VPC']:
+            # Metrics
+            url = PRODUCT_TO_URL[product]
+            f = urllib2.urlopen(url)
+            
+            result = json.loads(f.read())
+
+    
+
+# Just for simplicity
+m2 = {}
+for key in AWS_INSTANCE_METRICS:
+    m2[key.replace('.','_')] = AWS_INSTANCE_METRICS[key]
+AWS_INSTANCE_METRICS.update(m2)
+
+# Region - Product - Price
+AWS_ON_DEMAND_PRICES = {
+    'us_east_1' : { 
+        'm3.medium' : 0.07,
+        'm3.large'  : 0.14,
+        'm3.xlarge' : 0.28,
+        'm3.2xlarge' : 0.56,
+        'm1.small' : 0.044,
+        'm1.medium' : 0.087,
+        'm1.large' : 0.175,
+        'm1.xlarge' : 0.35,
+        'c3.large' : 0.105,
+        'c3.xlarge' : 0.21,
+        'c3.2xlarge' : 0.42,
+        'c3.4xlarge' : 0.84,
+        'c3.8xlarge' : 1.68,
+        'c1.medium'  : 0.13,
+        'c1.xlarge'  : 0.52,
+        'cc2.8xlarge' : 2,
+        'g2.2xlarge' : 0.65,
+        'cg1.4xlarge' : 2.1,
+        'r3.large' : 0.175,
+        'r3.xlarge' : 0.35,
+        'r3.2xlarge' : 0.7,
+        'r3.4xlarge' : 1.4,
+        'r3.8xlarge' : 2.8,
+        'm2.xlarge' : 0.245,
+        'm2.2xlarge' : 0.49,
+        'm2.4xlarge': 0.98,
+        'cr1.8xlarge': 3.5,
+        'i2.xlarge' : 0.853,
+        'i2.2xlarge' : 1.705,
+        'i2.4xlarge':3.41,
+       'i2.8xlarge': 6.82,
+        'hs1.8xlarge' : 4.6,
+        'hi1.4xlarge' : 3.1,
+        't1.micro': 0.02
+}
+}
+      
+
+AWS_STANDARD_PRICES  = {
+     'ondemand' : AWS_ON_DEMAND_PRICES
+} 
+
