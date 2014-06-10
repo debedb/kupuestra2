@@ -1,3 +1,4 @@
+#!/opt/kup/virtupy/bin/python
 import datetime
 import arrow
 import sys
@@ -5,7 +6,7 @@ import common
 
 def main(st,et):
     if not st:
-        st = arrow.utcnow().replace(minutes=-8)
+        start_time = arrow.utcnow().replace(minutes=-DEFAULT_LOOKBACK_MINUTES)
     if not et:
         et = arrow.utcnow()
     print "Processing from %s until %s" % (st, et)

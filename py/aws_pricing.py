@@ -92,8 +92,6 @@ def fetch_aws_pricing():
 
 fetch_aws_pricing()
 
-print AWS_ON_DEMAND_PRICES
-
 AWS_STANDARD_PRICES  = {
      'ondemand' : AWS_ON_DEMAND_PRICES
 } 

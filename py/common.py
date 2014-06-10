@@ -81,3 +81,5 @@ def ts_from_aws(arg):
     ts = calendar.timegm(arg.utctimetuple())
     #print "Parsed %s to %s" % (arg0, ts)
     return ts
+
+DEFAULT_LOOKBACK_MINUTES=-8

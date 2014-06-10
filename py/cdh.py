@@ -35,9 +35,11 @@ def main():
 
     
     insts = api.get_all_hosts('full')
+    print "Found %s in the cluster" % [inst.hostId for inst in insts.objects]
     for inst in insts.objects:
         clusterName =  inst.roleRefs[0].clusterName
         if clusterName <> c.name:
+            print 'Clusters do not correspond: %s vs %s' % (clusterName, c.name)
             continue
 
         cores = inst.numCores
@@ -48,11 +50,14 @@ def main():
         my_cache['aws_info_recorded'] = False
         my_cache['healthSummary'] = inst.healthSummary
 
-        
         ress = ec2con.get_all_reservations(filters={'instance-id' : inst_id})
+        if len(ress) > 1:
+            print "Found %s reservations for %s: %s" % (len(ress), inst_id, ress)
         res = ress[0]
 
         instances = res.instances
+        if len(instances) > 1:
+            print "Found %s instances for %s %s" % (len(instances), inst_id, instances)
         inst = instances[0]
         if inst.id <> inst_id:
             raise Exception("%s != %s" % (inst.id, inst_id))
@@ -64,7 +69,7 @@ def main():
 
         my_cache['inst_type'] = inst_type
         
-        time_f =  arrow.utcnow().replace(minutes=-5)
+        time_f =  arrow.utcnow().replace(minutes=common.DEFAULT_LOOKBACK_MINUTES)
         time_t = arrow.utcnow()
         # TODO
         # http://arr.gr/blog/2013/08/monitoring-ec2-instance-memory-usage-with-cloudwatch/
@@ -73,22 +78,21 @@ def main():
         stat = cwcon.get_metric_statistics(300,
                                            time_f,
                                            time_t,
-                                           common.CW_M_CPU,
+                                           'CPUUtilization',
                                            'AWS/EC2',
                                            ['Average','Minimum','Maximum'],
                                            { 'InstanceId' : inst_id })     
             # [{u'Timestamp': datetime.datetime(2014, 4, 13, 6, 5), u'Average': 0.35250000000000004, u'Minimum': 0.33, u'Maximum': 0.42, u'Unit': u'Percent'}]
+        print 'Fetching stats for %s: %s' % (inst_id, stat)
         if stat:
             stat = stat[0]
             ts = common.ts_from_aws(stat)
             my_cache['ts'] = ts
             my_cache['avg_cpu'] = float(stat['Average'])
+        else:
+            print "No stats found for %s" % inst_id
                    
-
     series = api.query_timeseries('SELECT * WHERE clusterName = %s'  % c.name)
-#    print series.objects[0].__dict__
-#    print series.objects[0].timeSeries
-    print len(series.objects[0].timeSeries)
     
     for entry in series.objects[0].timeSeries:
         # print entry.metadata.__dict__
@@ -149,27 +153,13 @@ def main():
             common.otsdb_send(metric, val, combined_tags, ts, False)
             # Do the AWS once only
             if my_cache and not my_cache['aws_info_recorded']:
+                print my_cache
                 combined_tags['unit'] = 'percent'
                 common.otsdb_send('aws_average_cpu_utilization', 
                                   my_cache['avg_cpu'],
                                   combined_tags, 
                                   my_cache['ts'], 
                                   False)
-
-                combined_tags['unit'] = 'quantity'
-                common.otsdb_send('aws_vcpu',
-                                  common.AWS_INSTANCE_METRICS[inst_type]['vcpu'],
-                                  combined_tags, 
-                                  my_cache['ts'], 
-                                  False)
-
-                combined_tags['unit'] = 'bytes'
-                common.otsdb_send('aws_memory_available',
-                                  common.AWS_INSTANCE_METRICS[inst_type]['mem'],
-                                  combined_tags, 
-                                  my_cache['ts'], 
-                                  False)
-            
 
 if __name__ == "__main__":
     main()
