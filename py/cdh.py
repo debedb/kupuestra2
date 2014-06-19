@@ -33,7 +33,6 @@ def main():
     
     inst_cache = {}
 
-    
     insts = api.get_all_hosts('full')
     print "Found %s in the cluster" % [inst.hostId for inst in insts.objects]
     for inst in insts.objects:
@@ -48,7 +47,7 @@ def main():
         # For later - we'll send in one data point for every TS query
         # that has AWS data
         my_cache['aws_info_recorded'] = False
-        my_cache['healthSummary'] = inst.healthSummary
+        # my_cache['healthSummary'] = inst.healthSummary
 
         ress = ec2con.get_all_reservations(filters={'instance-id' : inst_id})
         if len(ress) > 1:
@@ -62,9 +61,23 @@ def main():
         if inst.id <> inst_id:
             raise Exception("%s != %s" % (inst.id, inst_id))
 
+        platform = inst.platform
+        vpc_id = inst.vpc_id
+
+        if platform == 'windows':
+            product = 'Windows'
+        elif not platform:
+            product = 'Linux_UNIX'
+        else:
+            product = 'UNKNOWN'
+        if vpc_id:
+            product += "_Amazon_VPC"
+
+        ami = inst.image_id
+
+        my_cache['product'] = product
         my_cache['region'] = inst.region.name
         my_cache['zone'] = inst.placement
-        
         inst_type = inst.instance_type.replace('.','_')
 
         my_cache['inst_type'] = inst_type
@@ -91,9 +104,8 @@ def main():
             my_cache['avg_cpu'] = float(stat['Average'])
         else:
             print "No stats found for %s" % inst_id
-                   
+    print "Querying CDH."
     series = api.query_timeseries('SELECT * WHERE clusterName = %s'  % c.name)
-    
     for entry in series.objects[0].timeSeries:
         # print entry.metadata.__dict__
         metric = entry.metadata.metricName
@@ -117,7 +129,7 @@ def main():
         role_type = ""
         if 'roleType' in entry.metadata.attributes:
             role_type = entry.metadata.attributes['roleType']
-        
+
         
         num = entry.metadata.unitNumerators
         denom = entry.metadata.unitDenominators
@@ -130,26 +142,31 @@ def main():
         if len(denom) > 0:
             unit += denom[0]
         tags = {
-            'cdh_service_name' : service_name,
-            'cdh_service_type' : service_type,
-            'cdh_role_type' : role_type,
+            'cdh_service_name_service_type_role_type' : "%s.%s.%s" % (
+                service_name,
+                service_type,
+                role_type),
             'unit' : unit
             }
         
         combined_tags = deepcopy(tags)
         if my_cache:
-            combined_tags['healthSummary']= my_cache['healthSummary']
+            # combined_tags['healthSummary']= my_cache['healthSummary']
             combined_tags['inst_type'] = my_cache['inst_type']
             combined_tags['cloud'] = 'aws'
             combined_tags['region'] = my_cache['region']
             combined_tags['zone'] = my_cache['zone']
-
+            combined_tags['product'] = my_cache['product']
+            
         if not entry.data:
             continue
         
         for sample in entry.data:
             ts = arrow.Arrow.fromdatetime(sample.timestamp).timestamp
             val = sample.value
+            if len(combined_tags) > 8:
+                print "ERROR: Too many tags: %s" % combined_tags
+                sys.exit(0)
             common.otsdb_send(metric, val, combined_tags, ts, False)
             # Do the AWS once only
             if my_cache and not my_cache['aws_info_recorded']:

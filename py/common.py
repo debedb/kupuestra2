@@ -23,8 +23,11 @@ OTSDB_BUFFER_SIZE = 1000
 
 OTSDB_BUFFER = []
 
+records_to_otsdb = 0
+
 def send_messages(host, port, msg):
     i = 1
+    global records_to_otsdb
     while True:
         try:
             sock = socket.socket()
@@ -34,9 +37,13 @@ def send_messages(host, port, msg):
                 for m in msg:
                     # print "To socket: %s" % m
                     sock.sendall(m)
+                    # print m
+                records_to_otsdb += len(msg)
             else:
                 # print "To socket: %s" % msg
                 sock.sendall(msg)
+                # print msg
+                records_to_otsdb += 1
             sock.close()
             break
         except Exception, e:
@@ -56,19 +63,22 @@ def otsdb_send(key, value, tags, ts=None, file_only=False):
     msg = "put %s %s %s %s" % (key, ts, value, tags_str)
     # print "Sending to OpenTSDB:\n\t%s" % msg
     msg += "\n"
+    # print msg
     OTSDB_BUFFER.append(msg)
     if len(OTSDB_BUFFER) % OTSDB_BUFFER_SIZE == 0:
         send_messages(OPENTSDB_HOST, OPENTSDB_PORT, OTSDB_BUFFER)
         OTSDB_BUFFER[:] = []
 
 def otsdb_send_remaining():
-    print "Sending remaining %s messages"  % len(OTSDB_BUFFER)
-    print "Ending with\n\t%s" % OTSDB_BUFFER[-1]
-    send_messages(OPENTSDB_HOST, OPENTSDB_PORT, OTSDB_BUFFER)
+    if OTSDB_BUFFER:
+        print "Sending remaining %s messages"  % len(OTSDB_BUFFER)
+        print "Ending with\n\t%s" % OTSDB_BUFFER[-1]
+        send_messages(OPENTSDB_HOST, OPENTSDB_PORT, OTSDB_BUFFER)
+    print "Wrote to OpenTSDB: %s" % records_to_otsdb
+    print "Done."
 
-atexit.register(otsdb_send_remaining)
+atexit.register(otsdb_send_remaining)            
 
-            
 def g_send(key, value, ts=None):
     if ts is None:
         ts = arrow.utcnow().timestamp
