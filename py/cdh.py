@@ -43,7 +43,7 @@ def main():
 
         cores = inst.numCores
         inst_id = inst.hostId
-        my_cache = inst_cache[inst_id] = {}
+        inst_cache[inst_id] = my_cache =  {}
         # For later - we'll send in one data point for every TS query
         # that has AWS data
         my_cache['aws_info_recorded'] = False
@@ -119,6 +119,8 @@ def main():
 
         if 'hostId' in entry.metadata.attributes:
             inst_id = entry.metadata.attributes['hostId']
+            if inst_id not in my_cache:
+                print "Cannot find %s in %s" % (inst_id, inst_cache)
             my_cache = inst_cache[inst_id]
         service_name = ""
         if 'serviceName' in entry.metadata.attributes:
