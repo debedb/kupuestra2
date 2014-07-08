@@ -115,7 +115,6 @@ def main(st, et):
                     'zone'  : zone,
                     'product' : product,
                     'inst_type' : inst_type,
-                    'price_type' : 'spot',
                     'units' : 'USD'
                     }
                 try:
@@ -123,7 +122,9 @@ def main(st, et):
                     tss[reg_key][zone][product][inst_type].append(ts)
                 except KeyError:
                     print "No on-demand info for %s/%s/%s/%s" % (reg_key,zone,product,inst_type)
-                
+
+                common.otsdb_send('price_spot', value, tags, ts, False)  
+                tags['price_type'] = 'spot'
                 common.otsdb_send('price', value, tags, ts, False)
                 cnt += 1
 
@@ -143,7 +144,6 @@ def main(st, et):
                         'zone'  : zone,
                         'product' : product,
                         'inst_type' : inst_type,
-                        'price_type' : 'spot',
                         'units' : 'USD'
                         }
 
@@ -159,10 +159,13 @@ def main(st, et):
                         s2 = s1.asfreq('1Min', method='ffill')
                         # print "Sparse series:\n%s\n" % s1
                         # print "Filled series:\n%s\n" % s2
+                        # print "Sparse: %s, filled: %s" % (len(s1), len(s2))
                         for (dt,value) in s2.iteritems():
                             ts = arrow.Arrow.fromdatetime(dt).timestamp
-                            common.otsdb_send('price', value, tags, ts, False)
+                            common.otsdb_send('price_spot', value, tags, ts, False)  
+                            tags['price_type'] = 'spot'
 
+                            common.otsdb_send('price', value, tags, ts, False)
         sys.stdout.flush()
 
 if __name__ == "__main__":

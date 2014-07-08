@@ -44,12 +44,14 @@ def main(st,et):
                             'region' : region,
                             'product' : product,
                             'inst_type' : inst_type,
-                            'price_type' : 'ondemand',
-                            'zone' : zone,
+                           'zone' : zone,
                             'units' : 'USD',
                             'cloud' : 'aws'
                             }
-                        common.otsdb_send('price', price, tags, ts)
+                        common.otsdb_send('price_ondemand', price, tags, ts)
+                        tags['price_type'] = 'ondemand'
+                        common.otsdb_send('price', price, tags, ts)      
+             
                         if inst_type not in common.AWS_INSTANCE_METRICS:
                             print "ERROR: Cannot find metrics for %s" % inst_type
 
