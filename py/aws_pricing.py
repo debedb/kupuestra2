@@ -144,7 +144,6 @@ def updateMetrics(inst_type_x, sinfo):
     print "Writing metrics for %s: %s" % (inst_type_x, metrics)
     AWS_INSTANCE_METRICS[inst_type_x] = metrics
 
-
 def parseUrl(product, suffix, url):
     f = urllib2.urlopen(url)
     s = f.read()

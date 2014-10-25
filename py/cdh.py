@@ -50,7 +50,7 @@ def main():
         # my_cache['healthSummary'] = inst.healthSummary
 
         ress = ec2con.get_all_reservations(filters={'instance-id' : inst_id})
-        if len(ress) > 1:
+        if len(ress) > 0:
             print "Found %s reservations for %s: %s" % (len(ress), inst_id, ress)
         res = ress[0]
 
@@ -98,10 +98,9 @@ def main():
             # [{u'Timestamp': datetime.datetime(2014, 4, 13, 6, 5), u'Average': 0.35250000000000004, u'Minimum': 0.33, u'Maximum': 0.42, u'Unit': u'Percent'}]
         print 'Fetching stats for %s: %s' % (inst_id, stat)
         if stat:
-            stat = stat[0]
-            ts = common.ts_from_aws(stat)
-            my_cache['ts'] = ts
-            my_cache['avg_cpu'] = float(stat['Average'])
+            for s in stat:
+                ts = common.ts_from_aws(s)
+                my_cache['avg_cpu'] = float(s['Average'])
         else:
             print "No stats found for %s" % inst_id
     print "Querying CDH."

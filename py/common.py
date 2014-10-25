@@ -8,7 +8,7 @@ import time
 import collections
 
 OPENTSDB_HOST = 'node2.cloudera1.enremmeta.com'
-OPENTSDB_PORT = 4242
+OPENTSDB_PORT = 4343
 
 OPENTSDB_FILENAME = 'otsdb_%s.txt' % datetime.date.today().strftime('%m%d%Y_%M%h%s')
 OPENTSDB_FILE = None
